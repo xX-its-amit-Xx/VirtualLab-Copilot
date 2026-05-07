@@ -1,0 +1,46 @@
+services:
+  api:
+    build: .
+    image: virtuallab-copilot:latest
+    container_name: vlc-api
+    ports:
+      - "8000:8000"
+    environment:
+      VLC_DB_PATH: /app/data/virtuallab.db
+      VLC_NUM_PATIENTS: "400"
+      VLC_RANDOM_SEED: "42"
+    volumes:
+      - vlc-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    command: ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  app:
+    image: virtuallab-copilot:latest
+    container_name: vlc-app
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+    environment:
+      VLC_DB_PATH: /app/data/virtuallab.db
+      VLC_API_BASE_URL: http://api:8000
+    volumes:
+      - vlc-data:/app/data
+    command:
+      [
+        "streamlit",
+        "run",
+        "src/frontend/app.py",
+        "--server.port",
+        "8501",
+        "--server.address",
+        "0.0.0.0",
+      ]
+
+volumes:
+  vlc-data:
